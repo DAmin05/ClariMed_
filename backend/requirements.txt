@@ -1,23 +1,8 @@
-# Core backend framework
 flask
 flask-cors
-python-dotenv
-
-# Google Cloud SDKs
+requests
+firebase-admin
+google-cloud-firestore
 google-cloud-storage
 google-cloud-vision
-
-# AI / API Requests
-requests
-
-# Data validation and models
 pydantic
-
-# Snowflake connector
-snowflake-connector-python
-
-# Optional but recommended for performance & safety
-gunicorn       # if you plan to deploy on services like Render, Railway, etc.
-
-# Type hints (optional, but helpful for dev)
-typing-extensions
