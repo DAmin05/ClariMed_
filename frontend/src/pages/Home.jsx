@@ -8,6 +8,9 @@
 //   uploadFile,
 // } from "../services/api";
 
+import RecommendationsPanel from "../components/RecommendationsPanel";
+
+
 // const LANGS = [
 //   "English",
 //   "Hindi",
@@ -412,6 +415,9 @@ export default function Home({ user, onLogout }) {
               </div>
             </>
           )}
+
+            {/* ✅ Always show Recommendations if summary exists */}
+    <RecommendationsPanel summary={summary} />
 
           <div className="section-title">Listen</div>
           <div className="card">
