@@ -1,9 +1,23 @@
-export default function AudioPlayer({ src }) {
-  if (!src) return null;
+import React from "react";
+
+export default function AudioPlayer({ src, blob, autoPlay = false }) {
+  if (!src && !blob) return null;
+
+  const audioSrc = blob ? URL.createObjectURL(blob) : src;
+
   return (
-    <audio controls preload="metadata" className="audio">
-      <source src={src} type="audio/mpeg" />
-      Your browser does not support the audio element.
-    </audio>
+    <div style={{ marginTop: 10 }}>
+      <audio
+        controls
+        preload="auto"
+        src={audioSrc}
+        style={{
+          width: "100%",
+          borderRadius: "8px",
+          outline: "none",
+        }}
+        autoPlay={autoPlay}
+      />
+    </div>
   );
 }

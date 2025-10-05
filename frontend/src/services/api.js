@@ -74,3 +74,14 @@ export async function getRecommendations(summary) {
   return data;
 }
 
+
+// ---------- doctor chat ----------
+export async function chatWithDoctor(summary, history, question) {
+  const { data } = await axios.post(`${API_BASE}/chat`, {
+    summary,
+    history,
+    question,
+  });
+  return data; // { ok, answer }
+}
+

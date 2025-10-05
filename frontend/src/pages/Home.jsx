@@ -9,6 +9,8 @@
 // } from "../services/api";
 
 import RecommendationsPanel from "../components/RecommendationsPanel";
+import ChatPopup from "../components/ChatPopup";
+
 
 
 // const LANGS = [
@@ -199,6 +201,8 @@ import {
   uploadFile,
 } from "../services/api";
 import { auth, logout } from "../firebase";
+import AudioPlayer from "../components/AudioPlayer";
+
 
 const LANGS = [
   "English",
@@ -223,7 +227,6 @@ export default function Home({ user, onLogout }) {
   const [summary, setSummary] = useState("");
   const [keyPoints, setKeyPoints] = useState([]);
   const [audioUrl, setAudioUrl] = useState("");
-  const audioRef = useRef(null);
 
   const onChooseFile = (e) => {
     const f = e.target.files?.[0];
@@ -304,10 +307,7 @@ export default function Home({ user, onLogout }) {
       if (!tt.ok) throw new Error(tt.error || "TTS failed");
       setAudioUrl(tt.audio_url);
 
-      // autoplay
-      setTimeout(() => {
-        if (audioRef.current) audioRef.current.play().catch(() => {});
-      }, 200);
+      
     } catch (e) {
       setErr(e?.message || String(e));
     } finally {
@@ -401,7 +401,11 @@ export default function Home({ user, onLogout }) {
       {summary && (
         <>
           <div className="section-title">Summary</div>
-          <div className="card summary">{summary}</div>
+          <div className="card summary">{summary} 
+            <div>
+             {audioUrl && <AudioPlayer src={audioUrl} autoPlay={false} />}
+            </div>
+          </div>
 
           {keyPoints?.length > 0 && (
             <>
@@ -413,22 +417,29 @@ export default function Home({ user, onLogout }) {
                   ))}
                 </ul>
               </div>
+              
             </>
           )}
 
-            {/* ✅ Always show Recommendations if summary exists */}
-    <RecommendationsPanel summary={summary} />
+            {/* ✅ Summary Action Buttons Row */}
+{/* ✅ Action Buttons Row */}
+<div
+  style={{
+    display: "flex",
+    alignItems: "center",
+    gap: "12px",
+    marginTop: "16px",
+  }}
+>
+  <RecommendationsPanel summary={summary} lang={lang} />
 
-          <div className="section-title">Listen</div>
-          <div className="card">
-            {audioUrl ? (
-              <audio ref={audioRef} controls src={audioUrl} />
-            ) : (
-              <span style={{ color: "var(--muted)" }}>
-                TTS will appear here after summarization.
-              </span>
-            )}
-          </div>
+</div>
+
+
+
+
+          {summary && <ChatPopup summary={summary} />}
+
         </>
       )}
     </div>
