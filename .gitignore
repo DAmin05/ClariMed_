@@ -1,1 +1,11 @@
 .env
+
+env/
+.venv/
+__pycache__/
+*.pyc
+
+# Backend secrets & keys
+backend/services/secrets.json
+backend/services/firebase-adminsdk.json
+backend/services/gcp-service-account.json
