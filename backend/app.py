@@ -146,6 +146,41 @@ def process_text():
         return error(f"Gemini error: {e}", 500)
 
 
+@app.post("/recommendations")
+def recommendations():
+    """
+    Body (JSON): { "summary": "..." }
+    Returns: { ok, recommendations }
+    """
+    data = request.get_json(silent=True) or {}
+    summary = data.get("summary")
+    if not summary:
+        return error("Missing 'summary'")
+
+    prompt = (
+        "You are a knowledgeable yet cautious medical advisor.\n"
+        "Based on the provided medical summary, generate clear, trustworthy recommendations for the patient.\n"
+        "Focus on general wellness, potential next steps, lifestyle guidance, and information about conditions mentioned.\n"
+        "Avoid guessing or diagnosing; instead, give helpful directions like follow-up care, preventive steps, or questions to ask a doctor.\n"
+        "\n"
+        "OUTPUT FORMAT (Important):\n"
+        "- Write 5–8 bullet points (each starting with '- ') describing actionable and informative recommendations.\n"
+        "- Keep them short, positive, and easy to understand.\n"
+        "- Avoid repeating the summary itself.\n"
+        "- Tone: Supportive, factual, and encouraging.\n"
+        "\n"
+        f"SUMMARY:\n{summary}"
+    )
+
+    try:
+        resp = gemini_model.generate_content(prompt)
+        text = resp.text or ""
+        recs = [r.strip("- ").strip() for r in text.split("\n") if r.strip()]
+        return jsonify({"ok": True, "recommendations": recs})
+    except Exception as e:
+        return error(f"Gemini error: {e}", 500)
+
+
 @app.post("/translate")
 def translate():
     """

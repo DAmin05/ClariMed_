@@ -49,3 +49,10 @@ export async function makeTTS(text, voice_id) {
   });
   return data; // { ok, audio_url, path }
 }
+
+// ---------- recommendations ----------
+export async function getRecommendations(summary) {
+  const { data } = await axios.post(`${API_BASE}/recommendations`, { summary });
+  return data;
+}
+
