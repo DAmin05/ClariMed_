@@ -1,41 +1,100 @@
-import React, { useState } from "react";
-import { chatWithDoctor } from "../services/api";
+import React, { useState, useRef, useEffect } from "react";
+import { makeTTS } from "../services/api";
+import { API_BASE } from "../services/api";
 
 export default function ChatPopup({ summary }) {
   const [open, setOpen] = useState(false);
-  const [messages, setMessages] = useState([]); // [{from:'user'|'bot', text:''}]
+  const [messages, setMessages] = useState([
+    {
+      role: "assistant",
+      text: "👋 Hi, I’m ClariMed Assistant. You can ask me any medical question related to your report!",
+    },
+  ]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const chatEndRef = useRef(null);
 
-  const sendMessage = async () => {
-    const question = input.trim();
-    if (!question) return;
+  useEffect(() => {
+    if (chatEndRef.current) {
+      chatEndRef.current.scrollIntoView({ behavior: "smooth" });
+    }
+  }, [messages, open]);
+
+  const handleSend = async () => {
+    if (!input.trim()) return;
+    const userMsg = { role: "user", text: input.trim() };
+    setMessages((m) => [...m, userMsg]);
     setInput("");
-    const newMessages = [...messages, { from: "user", text: question }];
-    setMessages(newMessages);
     setLoading(true);
 
     try {
-      const history = newMessages.map((m) => ({
-        role: m.from === "user" ? "user" : "assistant",
-        text: m.text,
-      }));
+      // 🧠 Determine if question is medical
+      const isMedicalPrompt = `
+        Determine if the user's message is about a medical topic such as reports, symptoms, conditions, treatments, or healthcare.
+        If yes, respond with "yes". If it's unrelated (like general, math, or random), respond with "no".
+        Message: "${userMsg.text}"
+      `;
 
-      const res = await chatWithDoctor(summary, history, question);
-      if (res.ok) {
-        const botMsg = { from: "bot", text: res.answer };
-        setMessages((prev) => [...prev, botMsg]);
-      } else {
-        setMessages((prev) => [
-          ...prev,
-          { from: "bot", text: "Sorry, I couldn’t process your question right now." },
+      const checkRes = await fetch(`${API_BASE}/process-text`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: isMedicalPrompt }),
+      });
+
+      const checkData = await checkRes.json();
+      const decision = checkData.summary?.toLowerCase() || "";
+
+      if (decision.includes("no")) {
+        setMessages((m) => [
+          ...m,
+          {
+            role: "assistant",
+            text: "🙏 I’m a medical assistant and can only answer health-related questions. Sorry for the inconvenience!",
+          },
         ]);
+        setLoading(false);
+        return;
       }
+
+      // 🧠 Context prompt for Gemini
+      const fullContext = `
+You are ClariMed AI — a friendly, factual medical assistant.
+Your task is to help the user understand their report summary and related medical concerns.
+Use clear, 6th–8th grade-level explanations. Do not give prescriptions.
+Be empathetic and brief (4–6 sentences max).
+
+Report Summary:
+${summary}
+
+Conversation so far:
+${messages
+  .map((m) => `${m.role === "user" ? "User" : "Assistant"}: ${m.text}`)
+  .join("\n")}
+
+User’s new question:
+${userMsg.text}
+`;
+
+      const res = await fetch(`${API_BASE}/process-text`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: fullContext }),
+      });
+
+      const data = await res.json();
+      const aiText =
+        data.summary ||
+        "I'm sorry, I couldn’t understand that. Please rephrase your question.";
+
+      setMessages((m) => [...m, { role: "assistant", text: aiText }]);
     } catch (err) {
       console.error(err);
-      setMessages((prev) => [
-        ...prev,
-        { from: "bot", text: "An error occurred while connecting to the AI." },
+      setMessages((m) => [
+        ...m,
+        {
+          role: "assistant",
+          text: "⚠️ There was an issue connecting to the assistant. Please try again.",
+        },
       ]);
     } finally {
       setLoading(false);
@@ -44,145 +103,107 @@ export default function ChatPopup({ summary }) {
 
   return (
     <>
-      {/* Floating Chat Button */}
-      <div
+      {/* Floating Chat Toggle Button */}
+      <button
+        onClick={() => setOpen(!open)}
+        className="primary"
         style={{
           position: "fixed",
-          bottom: 20,
-          right: 20,
-          zIndex: 1000,
+          bottom: "24px",
+          right: "24px",
+          borderRadius: "50px",
+          padding: "12px 16px",
+          fontWeight: "bold",
+          zIndex: 999,
         }}
       >
-        {!open && (
-          <button
-            className="primary"
-            onClick={() => setOpen(true)}
-            style={{
-              borderRadius: "50%",
-              width: 60,
-              height: 60,
-              fontSize: 26,
-              cursor: "pointer",
-            }}
-          >
-            💬
-          </button>
-        )}
-      </div>
+        {open ? "Close Chat" : "💬 Ask AI"}
+      </button>
 
-      {/* Chat Window */}
       {open && (
         <div
+          className="card summary"
           style={{
             position: "fixed",
-            bottom: 90,
-            right: 20,
-            width: 340,
-            height: 440,
-            backgroundColor: "#fff",
-            border: "1px solid #ccc",
-            borderRadius: 12,
-            boxShadow: "0 4px 16px rgba(0,0,0,0.2)",
-            display: "flex",
-            flexDirection: "column",
-            zIndex: 2000,
+            bottom: "90px",
+            right: "24px",
+            width: "340px",
+            maxHeight: "450px",
+            overflowY: "auto",
+            padding: "16px",
+            boxShadow: "0 4px 12px rgba(0,0,0,0.25)",
+            zIndex: 1000,
           }}
         >
           <div
             style={{
-              backgroundColor: "#007bff",
-              color: "#fff",
-              padding: "10px 12px",
-              borderTopLeftRadius: 12,
-              borderTopRightRadius: 12,
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
+              fontWeight: "bold",
+              marginBottom: "10px",
+              fontSize: "1.05rem",
+              color: "var(--text)",
             }}
           >
-            <span>🩺 AI Doctor Chat</span>
-            <button
-              style={{
-                background: "transparent",
-                border: "none",
-                color: "white",
-                fontSize: 18,
-                cursor: "pointer",
-              }}
-              onClick={() => setOpen(false)}
-            >
-              ✕
-            </button>
+            🩺 ClariMed Assistant
           </div>
 
           <div
             style={{
-              flex: 1,
-              overflowY: "auto",
-              padding: "10px",
-              fontSize: 14,
-              scrollBehavior: "smooth",
+              display: "flex",
+              flexDirection: "column",
+              gap: "8px",
+              marginBottom: "10px",
             }}
           >
-            {messages.length === 0 && (
-              <p style={{ color: "#555" }}>
-                Ask me anything about your medical report — I can explain terms, next steps, or where to seek help.
-              </p>
-            )}
             {messages.map((msg, i) => (
               <div
                 key={i}
                 style={{
-                  margin: "8px 0",
-                  textAlign: msg.from === "user" ? "right" : "left",
+                  alignSelf:
+                    msg.role === "user" ? "flex-end" : "flex-start",
+                  backgroundColor:
+                    msg.role === "user"
+                      ? "rgba(0,123,255,0.1)"
+                      : "rgba(255,255,255,0.08)",
+                  color: "var(--text)",
+                  borderRadius:
+                    msg.role === "user"
+                      ? "12px 12px 0 12px"
+                      : "12px 12px 12px 0",
+                  padding: "8px 10px",
+                  maxWidth: "85%",
+                  wordWrap: "break-word",
+                  whiteSpace: "pre-wrap",
                 }}
               >
-                <div
-                  style={{
-                    display: "inline-block",
-                    backgroundColor:
-                      msg.from === "user" ? "#d1e7ff" : "#f3f3f3",
-                    padding: "8px 12px",
-                    borderRadius: 10,
-                    maxWidth: "85%",
-                    whiteSpace: "pre-wrap",
-                  }}
-                >
-                  {msg.text}
-                </div>
+                {msg.text}
               </div>
             ))}
-            {loading && <p style={{ color: "#888" }}>Thinking...</p>}
+            <div ref={chatEndRef} />
           </div>
 
-          <div
-            style={{
-              display: "flex",
-              borderTop: "1px solid #ccc",
-              padding: "8px",
-              gap: "6px",
-            }}
-          >
+          <div style={{ display: "flex", gap: "6px", marginTop: "8px" }}>
             <input
               type="text"
-              placeholder="Ask your medical question..."
+              placeholder="Ask about your report..."
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && sendMessage()}
+              onKeyDown={(e) => e.key === "Enter" && handleSend()}
               style={{
                 flex: 1,
-                border: "1px solid #ccc",
-                borderRadius: 8,
-                padding: "6px 8px",
+                borderRadius: "8px",
+                padding: "8px",
+                border: "1px solid rgba(255,255,255,0.2)",
+                background: "rgba(0,0,0,0.1)",
+                color: "white",
               }}
             />
             <button
-              className="primary"
-              onClick={sendMessage}
+              onClick={handleSend}
               disabled={loading}
-              style={{ borderRadius: 8 }}
+              className="primary"
+              style={{ borderRadius: "8px", padding: "8px 12px" }}
             >
-              ➤
+              {loading ? "..." : "Send"}
             </button>
           </div>
         </div>
